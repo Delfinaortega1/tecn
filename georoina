@@ -1,0 +1,141 @@
+let t = 0;
+let velocidadMontanas = 0;
+let solEscala = 1;
+let lagoClaro = true;
+let lagoAmplitud = 0;
+
+let mic, fft;
+let threshold = 1; // sensibilidad 
+
+let ultimoCambioColorLago = 0;
+let tiempoEspera = 300;
+
+function setup() {
+  createCanvas(850, 600);
+  noStroke();
+
+  mic = new p5.AudioIn();
+  mic.start();
+
+  fft = new p5.FFT();
+  fft.setInput(mic);
+}
+
+function draw() {
+  background(255);
+
+  let spectrum = fft.analyze();
+  let lowEnergy = fft.getEnergy("bass");
+  let midEnergy = fft.getEnergy("mid");
+  let highEnergy = fft.getEnergy("treble");
+
+  let ahora = millis();
+
+  solEscala = map(lowEnergy, 0, 255, 0.5, 2);
+
+  if (midEnergy > threshold) {
+    velocidadMontanas = 0.02;
+  } else {
+    velocidadMontanas = 0;
+  }
+
+  if (highEnergy > threshold) {
+    lagoAmplitud = map(highEnergy, threshold, 255, 10, 35, true); 
+
+    if (ahora - ultimoCambioColorLago > tiempoEspera) {
+      lagoClaro = !lagoClaro;
+      ultimoCambioColorLago = ahora;
+    }
+  } else {
+    lagoAmplitud = 0;
+  }
+
+  t += velocidadMontanas;
+
+  drawSky();
+  drawSun();
+  drawMountains();
+  drawLake();
+
+}
+function drawSky() {
+  for (let y = 0; y < height; y++) {
+    let inter = map(y, 0, height, 0, 1);
+    let c = lerpColor(color('#033c6b'), color('#3fa1b3'), inter);
+    stroke(c);
+    line(0, y, width, y);
+  }
+}
+
+function drawSun() {
+  let centerX = width / 2;
+  let centerY = height * 0.15;
+  let radii = [70, 60, 50, 40, 30, 20];
+  let colors = ['#F2F2F2', '#F2E1D8', '#D9CE96', '#F2E5A0', '#F2F2F2', '#cce2be'];
+
+  noStroke();
+  for (let i = 0; i < radii.length; i++) {
+    fill(colors[i]);
+    ellipse(centerX, centerY, radii[i] * 2 * solEscala);
+  }
+}
+
+function drawMountains() {
+  let levels = 5;
+  let baseY = height * 0.35;
+  let heightStep = 30;
+
+  for (let i = 0; i < levels; i++) {
+    let yOffset = baseY + i * heightStep;
+    let col = lerpColor(color('#2F5373'), color('#84A4BF'), i / levels);
+    stroke(col);
+    strokeWeight(7);
+    fill(col);
+    drawWaves(yOffset, 70, 0.0050 * (i + 1), t);
+  }
+}
+
+function drawLake() {
+  let levels = 3;
+  let baseY = height * 0.6;
+  let heightStep = 40;
+
+  noStroke();
+  for (let i = 0; i < levels; i++) {
+    let yOffset = baseY + i * heightStep;
+
+    let col = lagoClaro
+      ? lerpColor(color('#038C65'), color('#BAD9D3'), i / levels)
+      : lerpColor(color('#014d33'), color('#3e8e7e'), i / levels);
+
+    fill(col);
+
+    let tiempo = lagoAmplitud > 0 ? t * 3 : 0;
+    drawWaves(yOffset, 20 + lagoAmplitud, 0.003 * (levels - i), tiempo);
+  }
+}
+
+function drawWaves(y, amp, freq, time) {
+  beginShape();
+  vertex(0, height);
+  vertex(0, y);
+  for (let x = 0; x <= width; x += 10) {
+    let yOffset = sin((x * freq) + time) * amp;
+    vertex(x, y + yOffset);
+  }
+  vertex(width, y);
+  vertex(width, height);
+  endShape(CLOSE);
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Georgina o´Keeffe</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+</head>
+<body>
+  <script src="sketch.js"></script>
+</body>
+</html>
